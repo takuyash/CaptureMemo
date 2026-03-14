@@ -4,6 +4,7 @@
 テキストも画像も貼り付けできます。  
 
 本ソフトウェアはフリーソフトですので無料で使用することができます。  
+   <img src="screenshots/CaptureMemo.png" width="100%">  
 
 ---
 
