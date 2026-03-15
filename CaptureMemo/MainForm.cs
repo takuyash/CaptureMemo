@@ -11,14 +11,11 @@ namespace AlwaysOnTopMemo
 
         private int maxImageWidth = 0;
         private int maxImageHeight = 0;
-
         public MainForm()
         {
             Text = "CaptureMemo";
             Width = 400;
             Height = 500;
-
-            TopMost = true;
 
             editor = new RichTextBox();
             editor.Dock = DockStyle.Fill;
@@ -27,6 +24,11 @@ namespace AlwaysOnTopMemo
             Controls.Add(editor);
 
             editor.KeyDown += Editor_KeyDown;
+
+            this.Shown += (s, e) =>
+            {
+                TopMost = true;
+            };
         }
 
         private void Editor_KeyDown(object? sender, KeyEventArgs e)
