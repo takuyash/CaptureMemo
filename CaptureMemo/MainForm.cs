@@ -29,7 +29,7 @@ namespace AlwaysOnTopMemo
             editor.KeyDown += Editor_KeyDown;
         }
 
-        private void Editor_KeyDown(object sender, KeyEventArgs e)
+        private void Editor_KeyDown(object? sender, KeyEventArgs e)
         {
             if (e.Control && e.KeyCode == Keys.V)
             {
@@ -48,7 +48,10 @@ namespace AlwaysOnTopMemo
         {
             if (Clipboard.ContainsImage())
             {
-                Image img = Clipboard.GetImage();
+                Image? img = Clipboard.GetImage();
+
+                if (img == null)
+                    return;
 
                 maxImageWidth = Math.Max(maxImageWidth, img.Width);
                 maxImageHeight = Math.Max(maxImageHeight, img.Height);
