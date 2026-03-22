@@ -10,9 +10,6 @@ namespace AlwaysOnTopMemo
     {
         private RichTextBox editor;
 
-        private int maxImageWidth = 0;
-        private int maxImageHeight = 0;
-
         public MainForm()
         {
             Text = "CaptureMemo";
@@ -30,10 +27,7 @@ namespace AlwaysOnTopMemo
             editor.DragEnter += Editor_DragEnter;
             editor.DragDrop += Editor_DragDrop;
 
-            this.Shown += (s, e) =>
-            {
-                TopMost = true;
-            };
+            Shown += (s, e) => { TopMost = true; };
         }
 
         // =========================
@@ -62,9 +56,10 @@ namespace AlwaysOnTopMemo
             if (Clipboard.ContainsImage())
             {
                 Image? img = Clipboard.GetImage();
-                if (img == null) return;
-
-                InsertImage(img);
+                if (img != null)
+                {
+                    InsertImage(new Bitmap(img));
+                }
             }
             else if (Clipboard.ContainsText())
             {
@@ -77,7 +72,7 @@ namespace AlwaysOnTopMemo
         // =========================
         private void Editor_DragEnter(object? sender, DragEventArgs e)
         {
-            if (e.Data!.GetDataPresent(DataFormats.FileDrop))
+            if (e.Data != null && e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 e.Effect = DragDropEffects.Copy;
             }
@@ -85,7 +80,7 @@ namespace AlwaysOnTopMemo
 
         private void Editor_DragDrop(object? sender, DragEventArgs e)
         {
-            if (!e.Data!.GetDataPresent(DataFormats.FileDrop))
+            if (e.Data == null || !e.Data.GetDataPresent(DataFormats.FileDrop))
                 return;
 
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
@@ -94,48 +89,58 @@ namespace AlwaysOnTopMemo
             {
                 if (!File.Exists(file)) continue;
 
-                // ① まず画像として読めるか試す
+                // ① 画像として読む（安全版）
                 try
                 {
-                    using (Image img = Image.FromFile(file))
+                    using (var fs = new FileStream(file, FileMode.Open, FileAccess.Read))
+                    using (var img = Image.FromStream(fs))
                     {
-                        InsertImage((Image)img.Clone());
+                        InsertImage(new Bitmap(img));
                         continue;
                     }
                 }
                 catch
                 {
-                    // 画像じゃなかったら次へ
+                    // 画像じゃない
                 }
 
-                // ② テキストとして読む（拡張子関係なし）
+                // ② テキストとして読む（サイズ制限あり）
                 try
                 {
-                    string text = File.ReadAllText(file);
-                    editor.AppendText(text + Environment.NewLine);
+                    var info = new FileInfo(file);
+                    if (info.Length < 1024 * 1024) // 1MB制限
+                    {
+                        string text = File.ReadAllText(file);
+                        editor.AppendText(text + Environment.NewLine);
+                    }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // バイナリなど読めない場合は無視
+                    Console.WriteLine(ex.Message);
                 }
             }
         }
 
         // =========================
-        // 画像挿入（共通化）
+        // 画像挿入（安全版）
         // =========================
         private void InsertImage(Image img)
         {
-            // サイズ制限（でかすぎ防止）
             img = ResizeImage(img, 800);
 
-            maxImageWidth = Math.Max(maxImageWidth, img.Width);
-            maxImageHeight = Math.Max(maxImageHeight, img.Height);
+            // クリップボード退避
+            IDataObject backup = Clipboard.GetDataObject();
 
-            ResizeWindow();
-
-            Clipboard.SetImage(img);
-            editor.Paste();
+            try
+            {
+                Clipboard.SetImage(img);
+                editor.Paste();
+            }
+            finally
+            {
+                if (backup != null)
+                    Clipboard.SetDataObject(backup);
+            }
         }
 
         // =========================
@@ -147,21 +152,11 @@ namespace AlwaysOnTopMemo
                 return img;
 
             int newHeight = img.Height * maxWidth / img.Width;
-            return new Bitmap(img, new Size(maxWidth, newHeight));
-        }
 
-        // =========================
-        // ウィンドウサイズ調整
-        // =========================
-        private void ResizeWindow()
-        {
-            int margin = 60;
+            var resized = new Bitmap(img, new Size(maxWidth, newHeight));
+            img.Dispose();
 
-            int newWidth = maxImageWidth + margin;
-            int newHeight = maxImageHeight + margin;
-
-            Width = Math.Max(Width, newWidth);
-            Height = Math.Max(Height, newHeight);
+            return resized;
         }
 
         // =========================
