@@ -94,21 +94,29 @@ namespace AlwaysOnTopMemo
             {
                 if (!File.Exists(file)) continue;
 
-                string ext = Path.GetExtension(file).ToLower();
-
-                // 画像
-                if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".gif")
+                // ① まず画像として読めるか試す
+                try
                 {
                     using (Image img = Image.FromFile(file))
                     {
                         InsertImage((Image)img.Clone());
+                        continue;
                     }
                 }
-                // テキスト系
-                else if (ext == ".txt" || ext == ".log" || ext == ".csv" || ext == ".json")
+                catch
+                {
+                    // 画像じゃなかったら次へ
+                }
+
+                // ② テキストとして読む（拡張子関係なし）
+                try
                 {
                     string text = File.ReadAllText(file);
                     editor.AppendText(text + Environment.NewLine);
+                }
+                catch
+                {
+                    // バイナリなど読めない場合は無視
                 }
             }
         }
