@@ -11,4 +11,10 @@
     <FileVersion>0.3.0.0</FileVersion>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Update="icon.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

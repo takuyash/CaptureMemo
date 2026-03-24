@@ -10,8 +10,16 @@ namespace AlwaysOnTopMemo
     {
         private RichTextBox editor;
 
+        // アイコンオブジェクト
+        public static Icon AppIcon;
+
         public MainForm()
         {
+            // アイコンを読み込む
+            AppIcon = LoadIcon("icon.ico");
+
+            this.Icon = AppIcon;
+
             Text = "CaptureMemo";
             Width = 400;
             Height = 500;
@@ -178,6 +186,16 @@ namespace AlwaysOnTopMemo
 
                 bmp.Save(dialog.FileName, ImageFormat.Png);
             }
+        }
+
+        private static Icon LoadIcon(string fileName)
+        {
+            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+            if (File.Exists(path))
+            {
+                try { return new Icon(path); } catch { }
+            }
+            return Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         }
 
         // =========================
