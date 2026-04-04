@@ -40,6 +40,8 @@ namespace AlwaysOnTopMemo
             Width = 400;
             Height = 600;
 
+            this.TopMost = true;
+
             tabControl = new TabControl();
             tabControl.Dock = DockStyle.Fill;
             tabControl.DrawMode = TabDrawMode.OwnerDrawFixed;
@@ -528,14 +530,19 @@ namespace AlwaysOnTopMemo
         // =========================
         private void SaveToJson()
         {
-            var list = new List<string>();
+            var list = new List<TabData>();
 
             foreach (TabPage tab in tabControl.TabPages)
             {
                 if (tab.Text == "+") continue;
 
                 var editor = tab.Controls[0] as RichTextBox;
-                list.Add(editor.Rtf);
+
+                list.Add(new TabData
+                {
+                    Title = tab.Text,
+                    Rtf = editor.Rtf
+                });
             }
 
             File.WriteAllText(savePath, JsonSerializer.Serialize(list));
@@ -545,17 +552,14 @@ namespace AlwaysOnTopMemo
         {
             if (!File.Exists(savePath)) return;
 
-            var list = JsonSerializer.Deserialize<List<string>>(File.ReadAllText(savePath));
+            var list = JsonSerializer.Deserialize<List<TabData>>(File.ReadAllText(savePath));
 
-            foreach (var rtf in list)
+            foreach (var item in list)
             {
-                int nextNo = GetNextTabNumber();
-                if (nextNo == -1) break;
-
                 var editor = CreateEditor();
-                editor.Rtf = rtf;
+                editor.Rtf = item.Rtf;
 
-                var tab = new TabPage($"Tab {nextNo}");
+                var tab = new TabPage(item.Title);
                 tab.Controls.Add(editor);
 
                 tabControl.TabPages.Add(tab);
@@ -604,5 +608,10 @@ namespace AlwaysOnTopMemo
             Application.EnableVisualStyles();
             Application.Run(new MainForm());
         }
+    }
+    class TabData
+    {
+        public string Title { get; set; }
+        public string Rtf { get; set; }
     }
 }
