@@ -55,6 +55,8 @@ namespace AlwaysOnTopMemo
             Height = 600;
 
             this.TopMost = true;
+            this.Activated += (s, e) => this.TopMost = true;
+            this.Deactivate += (s, e) => this.TopMost = true;
 
             tabControl = new TabControl();
             tabControl.Dock = DockStyle.Fill;
