@@ -44,6 +44,9 @@ namespace AlwaysOnTopMemo
             tabControl.Dock = DockStyle.Fill;
             tabControl.DrawMode = TabDrawMode.OwnerDrawFixed;
 
+            tabControl.SizeMode = TabSizeMode.Fixed;
+            tabControl.ItemSize = new Size(60, 24); 
+
             tabControl.DrawItem += TabControl_DrawItem;
             tabControl.MouseDown += TabControl_MouseDown;
             tabControl.Selecting += TabControl_Selecting;
@@ -212,8 +215,9 @@ namespace AlwaysOnTopMemo
             string title = tab.Text + "Å@";
 
             TextRenderer.DrawText(g, title, Font,
-                new Rectangle(tabRect.X + 5, tabRect.Y + 4, tabRect.Width - 20, tabRect.Height),
-                Color.Black);
+                new Rectangle(tabRect.X + 6, tabRect.Y + 4, tabRect.Width - 30, tabRect.Height),
+                Color.Black,
+                TextFormatFlags.NoPadding);
 
             // Å~É{É^Éì
             Rectangle closeRect = new Rectangle(
