@@ -11,7 +11,8 @@ namespace AlwaysOnTopMemo
     public class MainForm : Form
     {
         private TabControl tabControl;
-        private const int MAX_TABS = 5;
+        private int hoverCloseIndex = -1;
+        private const int MAX_TABS = 10;
         public static Icon AppIcon;
 
         private int tabIndexCounter = 1;
@@ -37,6 +38,13 @@ namespace AlwaysOnTopMemo
             tabControl.DrawItem += TabControl_DrawItem;
             tabControl.MouseDown += TabControl_MouseDown;
             tabControl.Selecting += TabControl_Selecting;
+
+            tabControl.MouseMove += TabControl_MouseMove;
+            tabControl.MouseLeave += (s, e) =>
+            {
+                hoverCloseIndex = -1;
+                tabControl.Invalidate();
+            };
 
             Controls.Add(tabControl);
 
@@ -91,7 +99,7 @@ namespace AlwaysOnTopMemo
         {
             if (tabControl.TabCount - 1 >= MAX_TABS)
             {
-                MessageBox.Show("ç≈ëÂ5É^ÉuÇ≈Ç∑");
+                MessageBox.Show("ç≈ëÂ10É^ÉuÇ≈Ç∑");
                 return;
             }
 
@@ -113,6 +121,30 @@ namespace AlwaysOnTopMemo
 
             tabControl.TabPages.RemoveAt(index);
             FixPlusTabPosition();
+        }
+        private void TabControl_MouseMove(object sender, MouseEventArgs e)
+        {
+            int newHoverIndex = -1;
+
+            for (int i = 0; i < tabControl.TabCount; i++)
+            {
+                var tab = tabControl.TabPages[i];
+
+                if (tab.Tag is Rectangle rect)
+                {
+                    if (rect.Contains(e.Location))
+                    {
+                        newHoverIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (hoverCloseIndex != newHoverIndex)
+            {
+                hoverCloseIndex = newHoverIndex;
+                tabControl.Invalidate(); // çƒï`âÊ
+            }
         }
 
         // =========================
@@ -148,8 +180,18 @@ namespace AlwaysOnTopMemo
                 14,
                 14);
 
-            TextRenderer.DrawText(g, "Å~", Font, closeRect, Color.Black,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            // ÉzÉoÅ[éûÇÃîwåi
+            if (hoverCloseIndex == e.Index)
+            {
+                g.FillRectangle(Brushes.IndianRed, closeRect);
+                TextRenderer.DrawText(g, "Å~", Font, closeRect, Color.White,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+            else
+            {
+                TextRenderer.DrawText(g, "Å~", Font, closeRect, Color.Black,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
 
             tab.Tag = closeRect;
         }
