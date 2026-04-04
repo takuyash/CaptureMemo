@@ -25,6 +25,12 @@ namespace AlwaysOnTopMemo
         private int dragTabIndex = -1;
         private bool isDragging = false;
 
+        // ゴースト用
+        private Rectangle? dragGhostRect = null;
+
+        // 右クリック対象
+        private int rightClickTabIndex = -1;
+
         public MainForm()
         {
             AppIcon = LoadIcon("icon.ico");
@@ -153,9 +159,11 @@ namespace AlwaysOnTopMemo
                 tabControl.Invalidate(); // 再描画
             }
 
-
+            // ドラッグ中
             if (isDragging && dragTabIndex >= 0)
             {
+                dragGhostRect = new Rectangle(e.X - 30, e.Y - 10, 60, 20);
+
                 for (int i = 0; i < tabControl.TabCount; i++)
                 {
                     if (i == dragTabIndex) continue;
@@ -174,6 +182,8 @@ namespace AlwaysOnTopMemo
                         break;
                     }
                 }
+
+                tabControl.Invalidate();
             }
         }
 
@@ -198,8 +208,10 @@ namespace AlwaysOnTopMemo
             // 通常タブ
             g.FillRectangle(Brushes.LightGray, tabRect);
 
-            // タイトル
-            TextRenderer.DrawText(g, tab.Text, Font,
+            // タイトル 
+            string title = tab.Text + "　";
+
+            TextRenderer.DrawText(g, title, Font,
                 new Rectangle(tabRect.X + 5, tabRect.Y + 4, tabRect.Width - 20, tabRect.Height),
                 Color.Black);
 
@@ -224,6 +236,13 @@ namespace AlwaysOnTopMemo
             }
 
             tab.Tag = closeRect;
+
+            // ゴースト描画
+            if (isDragging && dragGhostRect.HasValue)
+            {
+                using var b = new SolidBrush(Color.FromArgb(120, Color.Gray));
+                g.FillRectangle(b, dragGhostRect.Value);
+            }
         }
 
         // =========================
@@ -234,6 +253,17 @@ namespace AlwaysOnTopMemo
             for (int i = 0; i < tabControl.TabCount; i++)
             {
                 var tab = tabControl.TabPages[i];
+
+                // 右クリック
+                if (e.Button == MouseButtons.Right &&
+                    tabControl.GetTabRect(i).Contains(e.Location))
+                {
+                    if (IsPlusTab(i)) return;
+
+                    rightClickTabIndex = i;
+                    ShowContextMenu(e.Location);
+                    return;
+                }
 
                 // ＋クリック
                 if (IsPlusTab(i))
@@ -264,11 +294,44 @@ namespace AlwaysOnTopMemo
             }
         }
 
-        // ドラッグ終了
+        private void ShowContextMenu(Point location)
+        {
+            var menu = new ContextMenuStrip();
+
+            menu.Items.Add("削除", null, (s, e) => CloseTab(rightClickTabIndex));
+
+            menu.Items.Add("複製", null, (s, e) =>
+            {
+                var src = tabControl.TabPages[rightClickTabIndex];
+                var editor = CreateEditor();
+                editor.Rtf = ((RichTextBox)src.Controls[0]).Rtf;
+
+                var tab = new TabPage(src.Text + "_copy");
+                tab.Controls.Add(editor);
+
+                tabControl.TabPages.Insert(rightClickTabIndex + 1, tab);
+                FixPlusTabPosition();
+            });
+
+            menu.Items.Add("名前変更", null, (s, e) =>
+            {
+                var tab = tabControl.TabPages[rightClickTabIndex];
+                string input = Microsoft.VisualBasic.Interaction.InputBox(
+                    "タブ名を入力", "名前変更", tab.Text);
+
+                if (!string.IsNullOrWhiteSpace(input))
+                    tab.Text = input;
+            });
+
+            menu.Show(tabControl, location);
+        }
+
         private void TabControl_MouseUp(object sender, MouseEventArgs e)
         {
             isDragging = false;
             dragTabIndex = -1;
+            dragGhostRect = null;
+            tabControl.Invalidate();
         }
 
         // ダブルクリックで名前変更
