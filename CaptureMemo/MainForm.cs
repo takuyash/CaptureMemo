@@ -12,6 +12,7 @@ namespace AlwaysOnTopMemo
     {
         private TabControl tabControl;
         private const int MAX_TABS = 5;
+        public static Icon AppIcon;
 
         private string savePath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,
@@ -20,6 +21,9 @@ namespace AlwaysOnTopMemo
 
         public MainForm()
         {
+            AppIcon = LoadIcon("icon.ico");
+            this.Icon = AppIcon;
+
             Text = "CaptureMemo";
             Width = 500;
             Height = 600;
@@ -345,6 +349,15 @@ namespace AlwaysOnTopMemo
 
                 tabControl.TabPages.Add(tab);
             }
+        }
+        private static Icon LoadIcon(string fileName)
+        {
+            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+            if (File.Exists(path))
+            {
+                try { return new Icon(path); } catch { }
+            }
+            return Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         }
 
         // =========================
