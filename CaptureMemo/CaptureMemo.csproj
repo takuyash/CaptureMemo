@@ -8,13 +8,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Version>0.4.0</Version>
     <AssemblyVersion>0.4.0.0</AssemblyVersion>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
     <FileVersion>0.4.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="icon.ico">
+    <EmbeddedResource Include="icon.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

@@ -773,14 +773,20 @@ namespace AlwaysOnTopMemo
             }
         }
 
-        private static Icon LoadIcon(string fileName)
+        private static Icon LoadIcon(string resourceName)
         {
-            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
-            if (File.Exists(path))
+            var assembly = typeof(MainForm).Assembly;
+
+            // リソース名の確認
+            string fullName = assembly.GetManifestResourceNames()
+                                      .FirstOrDefault(n => n.EndsWith(resourceName, StringComparison.OrdinalIgnoreCase));
+            if (fullName != null)
             {
-                try { return new Icon(path); } catch { }
+                using Stream stream = assembly.GetManifestResourceStream(fullName);
+                if (stream != null)
+                    return new Icon(stream);
             }
-            return Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            return SystemIcons.Application;
         }
 
         private void MainForm_KeyDown(object sender, KeyEventArgs e)
