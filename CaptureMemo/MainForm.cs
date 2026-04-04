@@ -67,16 +67,21 @@ namespace AlwaysOnTopMemo
 
         private void FixPlusTabPosition()
         {
-            for (int i = 0; i < tabControl.TabPages.Count; i++)
+            TabPage plus = null;
+
+            foreach (TabPage tab in tabControl.TabPages)
             {
-                if (tabControl.TabPages[i].Text == "+")
+                if (tab.Text == "+")
                 {
-                    var plus = tabControl.TabPages[i];
-                    tabControl.TabPages.RemoveAt(i);
-                    tabControl.TabPages.Add(plus);
+                    plus = tab;
                     break;
                 }
             }
+
+            if (plus == null) return;
+
+            tabControl.TabPages.Remove(plus);
+            tabControl.TabPages.Add(plus); // •K‚¸ÅŒã
         }
 
         // =========================
@@ -90,23 +95,23 @@ namespace AlwaysOnTopMemo
                 return;
             }
 
+            int nextNo = GetNextTabNumber();
+            if (nextNo == -1) return;
+
             var editor = CreateEditor();
-            var tab = new TabPage($"Tab {tabIndexCounter++}");
-
+            var tab = new TabPage($"Tab {nextNo}");
             tab.Controls.Add(editor);
-            // {‚Ì‘O‚É‘}“ü
-            tabControl.TabPages.Insert(tabControl.TabPages.Count - 1, tab);
-            tabControl.SelectedTab = tab;
 
-            FixPlusTabPosition();
+            tabControl.TabPages.Add(tab); // ˆê’U’Ç‰Á
+            FixPlusTabPosition();         // {‚ð‰E’[‚Ö
+            tabControl.SelectedTab = tab;
         }
 
         private void CloseTab(int index)
         {
-            if (tabControl.TabCount <= 2) return; // {ŠÜ‚ß‚ÄÅ’á2
+            if (tabControl.TabCount <= 2) return;// {ŠÜ‚ß‚ÄÅ’á2
 
             tabControl.TabPages.RemoveAt(index);
-
             FixPlusTabPosition();
         }
 
@@ -365,10 +370,13 @@ namespace AlwaysOnTopMemo
 
             foreach (var rtf in list)
             {
+                int nextNo = GetNextTabNumber();
+                if (nextNo == -1) break;
+
                 var editor = CreateEditor();
                 editor.Rtf = rtf;
 
-                var tab = new TabPage($"Tab {tabIndexCounter++}");
+                var tab = new TabPage($"Tab {nextNo}");
                 tab.Controls.Add(editor);
 
                 tabControl.TabPages.Add(tab);
@@ -383,6 +391,29 @@ namespace AlwaysOnTopMemo
                 try { return new Icon(path); } catch { }
             }
             return Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        }
+
+        // ’Ç‰ÁF‹ó‚«”Ô†Žæ“¾
+        private int GetNextTabNumber()
+        {
+            var used = new HashSet<int>();
+
+            foreach (TabPage tab in tabControl.TabPages)
+            {
+                if (tab.Text.StartsWith("Tab "))
+                {
+                    if (int.TryParse(tab.Text.Replace("Tab ", ""), out int num))
+                        used.Add(num);
+                }
+            }
+
+            for (int i = 1; i <= MAX_TABS; i++)
+            {
+                if (!used.Contains(i))
+                    return i;
+            }
+
+            return -1;
         }
 
         // =========================
