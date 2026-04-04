@@ -5,6 +5,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Text.Json;
 using System.Windows.Forms;
+using Timer = System.Windows.Forms.Timer;
 
 namespace AlwaysOnTopMemo
 {
@@ -72,6 +73,12 @@ namespace AlwaysOnTopMemo
 
             AddPlusTab();
             FixPlusTabPosition();
+
+            // 5•b‚²‚Æ‚ÉŽ©“®•Û‘¶
+            var timer = new Timer();
+            timer.Interval = 5000;
+            timer.Tick += (s, e) => SaveToJson();
+            timer.Start();
 
             FormClosing += (s, e) => SaveToJson();
         }
