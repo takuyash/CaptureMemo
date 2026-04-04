@@ -22,6 +22,9 @@ namespace AlwaysOnTopMemo
             "memo.json"
         );
 
+        private int dragTabIndex = -1;
+        private bool isDragging = false;
+
         public MainForm()
         {
             AppIcon = LoadIcon("icon.ico");
@@ -46,6 +49,9 @@ namespace AlwaysOnTopMemo
                 tabControl.Invalidate();
             };
 
+            tabControl.MouseUp += TabControl_MouseUp;
+            tabControl.MouseDoubleClick += TabControl_MouseDoubleClick;
+
             Controls.Add(tabControl);
 
             LoadFromJson();
@@ -54,7 +60,7 @@ namespace AlwaysOnTopMemo
                 AddNewTab();
 
             AddPlusTab();
-            FixPlusTabPosition(); 
+            FixPlusTabPosition();
 
             FormClosing += (s, e) => SaveToJson();
         }
@@ -89,7 +95,7 @@ namespace AlwaysOnTopMemo
             if (plus == null) return;
 
             tabControl.TabPages.Remove(plus);
-            tabControl.TabPages.Add(plus); // 必ず最後
+            tabControl.TabPages.Add(plus);
         }
 
         // =========================
@@ -122,6 +128,7 @@ namespace AlwaysOnTopMemo
             tabControl.TabPages.RemoveAt(index);
             FixPlusTabPosition();
         }
+
         private void TabControl_MouseMove(object sender, MouseEventArgs e)
         {
             int newHoverIndex = -1;
@@ -144,6 +151,29 @@ namespace AlwaysOnTopMemo
             {
                 hoverCloseIndex = newHoverIndex;
                 tabControl.Invalidate(); // 再描画
+            }
+
+
+            if (isDragging && dragTabIndex >= 0)
+            {
+                for (int i = 0; i < tabControl.TabCount; i++)
+                {
+                    if (i == dragTabIndex) continue;
+                    if (IsPlusTab(i)) continue;
+
+                    var rect = tabControl.GetTabRect(i);
+                    if (rect.Contains(e.Location))
+                    {
+                        var dragged = tabControl.TabPages[dragTabIndex];
+
+                        tabControl.TabPages.RemoveAt(dragTabIndex);
+                        tabControl.TabPages.Insert(i, dragged);
+
+                        dragTabIndex = i;
+                        tabControl.SelectedTab = dragged;
+                        break;
+                    }
+                }
             }
         }
 
@@ -224,6 +254,45 @@ namespace AlwaysOnTopMemo
                         return;
                     }
                 }
+
+                // ドラッグ開始
+                if (tabControl.GetTabRect(i).Contains(e.Location))
+                {
+                    dragTabIndex = i;
+                    isDragging = true;
+                }
+            }
+        }
+
+        // ドラッグ終了
+        private void TabControl_MouseUp(object sender, MouseEventArgs e)
+        {
+            isDragging = false;
+            dragTabIndex = -1;
+        }
+
+        // ダブルクリックで名前変更
+        private void TabControl_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            for (int i = 0; i < tabControl.TabCount; i++)
+            {
+                if (IsPlusTab(i)) continue;
+
+                if (tabControl.GetTabRect(i).Contains(e.Location))
+                {
+                    string current = tabControl.TabPages[i].Text;
+
+                    string input = Microsoft.VisualBasic.Interaction.InputBox(
+                        "タブ名を入力",
+                        "名前変更",
+                        current);
+
+                    if (!string.IsNullOrWhiteSpace(input))
+                    {
+                        tabControl.TabPages[i].Text = input;
+                    }
+                    break;
+                }
             }
         }
 
@@ -257,6 +326,7 @@ namespace AlwaysOnTopMemo
                 ? tabControl.SelectedTab.Controls[0] as RichTextBox
                 : null;
         }
+
 
         // =========================
         // キー操作
