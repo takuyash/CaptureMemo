@@ -513,7 +513,7 @@ namespace AlwaysOnTopMemo
                 catch { }
             }
         }
- 
+
         // =========================
         // ‰æ‘œ‚Æ‚µ‚Ä•Û‘¶
         // =========================
@@ -527,9 +527,31 @@ namespace AlwaysOnTopMemo
 
             if (dlg.ShowDialog() != DialogResult.OK) return;
 
-            Bitmap bmp = new Bitmap(editor.Width, editor.Height);
-            editor.DrawToBitmap(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height));
-            bmp.Save(dlg.FileName, ImageFormat.Png);
+            int width = editor.Width;
+            int height = editor.Height;
+
+            int totalHeight = editor.GetPositionFromCharIndex(editor.TextLength).Y + height;
+
+            Bitmap finalBmp = new Bitmap(width, totalHeight);
+
+            using (Graphics g = Graphics.FromImage(finalBmp))
+            {
+                int offset = 0;
+
+                while (offset < totalHeight)
+                {
+                    editor.AutoScrollOffset = new Point(0, offset);
+
+                    Bitmap tmp = new Bitmap(width, height);
+                    editor.DrawToBitmap(tmp, new Rectangle(0, 0, width, height));
+
+                    g.DrawImage(tmp, 0, offset);
+
+                    offset += height;
+                }
+            }
+
+            finalBmp.Save(dlg.FileName, ImageFormat.Png);
         }
 
         // =========================
