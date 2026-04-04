@@ -32,6 +32,19 @@ namespace AlwaysOnTopMemo
         // 右クリック対象
         private int rightClickTabIndex = -1;
 
+        // =========================
+        // 検索用
+        // =========================
+        private Panel searchPanel;
+        private TextBox searchBox;
+        private Button btnNext;
+        private Button btnPrev;
+        private Button btnClose;
+
+        private string lastKeyword = "";
+        private int currentTabIndex = 0;
+        private int currentIndex = 0;
+
         public MainForm()
         {
             AppIcon = LoadIcon("icon.ico");
@@ -48,7 +61,7 @@ namespace AlwaysOnTopMemo
             tabControl.DrawMode = TabDrawMode.OwnerDrawFixed;
 
             tabControl.SizeMode = TabSizeMode.Fixed;
-            tabControl.ItemSize = new Size(60, 24); 
+            tabControl.ItemSize = new Size(60, 24);
 
             tabControl.DrawItem += TabControl_DrawItem;
             tabControl.MouseDown += TabControl_MouseDown;
@@ -63,8 +76,57 @@ namespace AlwaysOnTopMemo
 
             tabControl.MouseUp += TabControl_MouseUp;
             tabControl.MouseDoubleClick += TabControl_MouseDoubleClick;
-
+            this.KeyPreview = true;
+            this.KeyDown += MainForm_KeyDown;
             Controls.Add(tabControl);
+
+            // =========================
+            // 検索UI
+            // =========================
+            searchPanel = new Panel();
+            searchPanel.Height = 30;
+            searchPanel.Dock = DockStyle.Top;
+            searchPanel.Visible = false;
+
+            searchBox = new TextBox();
+            searchBox.Left = 5;
+            searchBox.Width = 180;
+
+            btnPrev = new Button();
+            btnPrev.Text = "↑";
+            btnPrev.Left = 190;
+            btnPrev.Width = 30;
+
+            btnNext = new Button();
+            btnNext.Text = "↓";
+            btnNext.Left = 225;
+            btnNext.Width = 30;
+
+            btnClose = new Button();
+            btnClose.Text = "×";
+            btnClose.Left = 260;
+            btnClose.Width = 30;
+
+            searchPanel.Controls.Add(searchBox);
+            searchPanel.Controls.Add(btnPrev);
+            searchPanel.Controls.Add(btnNext);
+            searchPanel.Controls.Add(btnClose);
+
+            Controls.Add(searchPanel);
+            searchPanel.BringToFront();
+
+            searchBox.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    StartSearch(searchBox.Text);
+                    e.SuppressKeyPress = true;
+                }
+            };
+
+            btnNext.Click += (s, e) => SearchNext();
+            btnPrev.Click += (s, e) => SearchPrev();
+            btnClose.Click += (s, e) => searchPanel.Visible = false;
 
             LoadFromJson();
 
@@ -81,6 +143,111 @@ namespace AlwaysOnTopMemo
             timer.Start();
 
             FormClosing += (s, e) => SaveToJson();
+        }
+
+        // =========================
+        // 検索処理
+        // =========================
+        private void StartSearch(string keyword)
+        {
+            if (string.IsNullOrEmpty(keyword)) return;
+
+            lastKeyword = keyword;
+            currentTabIndex = tabControl.SelectedIndex;
+            currentIndex = 0;
+
+            SearchNext();
+        }
+
+        private void SearchNext()
+        {
+            Search(true);
+        }
+
+        private void SearchPrev()
+        {
+            Search(false);
+        }
+
+        private void Search(bool forward)
+        {
+            if (string.IsNullOrEmpty(lastKeyword)) return;
+
+            int tabCount = tabControl.TabCount;
+
+            for (int t = 0; t < tabCount; t++)
+            {
+                int index;
+
+                if (forward)
+                    index = (currentTabIndex + t) % tabCount;
+                else
+                    index = (currentTabIndex - t + tabCount) % tabCount;
+
+                var tab = tabControl.TabPages[index];
+
+                if (tab.Text == "+") continue;
+
+                var editor = tab.Controls[0] as RichTextBox;
+                if (editor == null) continue;
+
+                int start;
+
+                if (index == currentTabIndex)
+                {
+                    start = currentIndex;
+                }
+                else
+                {
+                    start = forward ? 0 : editor.TextLength;
+                }
+
+                int found = -1;
+
+                if (forward)
+                {
+                    if (start <= editor.TextLength)
+                    {
+                        found = editor.Text.IndexOf(
+                            lastKeyword,
+                            start,
+                            StringComparison.OrdinalIgnoreCase
+                        );
+                    }
+                }
+                else
+                {
+                    if (start > 0)
+                    {
+                        found = editor.Text.LastIndexOf(
+                            lastKeyword,
+                            start - 1,
+                            StringComparison.OrdinalIgnoreCase
+                        );
+                    }
+                }
+
+                if (found >= 0)
+                {
+                    tabControl.SelectedIndex = index;
+
+                    editor.SelectionStart = found;
+                    editor.SelectionLength = lastKeyword.Length;
+                    editor.ScrollToCaret();
+                    editor.Focus();
+
+                    currentTabIndex = index;
+
+                    if (forward)
+                        currentIndex = found + lastKeyword.Length;
+                    else
+                        currentIndex = found;
+
+                    return;
+                }
+            }
+
+            MessageBox.Show("見つかりません");
         }
 
         // =========================
@@ -403,7 +570,6 @@ namespace AlwaysOnTopMemo
                 : null;
         }
 
-
         // =========================
         // キー操作
         // =========================
@@ -605,6 +771,17 @@ namespace AlwaysOnTopMemo
             return Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         }
 
+        private void MainForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Control && e.KeyCode == Keys.F)
+            {
+                searchPanel.Visible = true;
+                searchBox.Focus();
+                searchBox.SelectAll();
+                e.SuppressKeyPress = true;
+            }
+        }
+
         // 追加：空き番号取得
         private int GetNextTabNumber()
         {
@@ -638,6 +815,7 @@ namespace AlwaysOnTopMemo
             Application.Run(new MainForm());
         }
     }
+
     class TabData
     {
         public string Title { get; set; }
