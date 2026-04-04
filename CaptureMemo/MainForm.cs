@@ -14,6 +14,8 @@ namespace AlwaysOnTopMemo
         private const int MAX_TABS = 5;
         public static Icon AppIcon;
 
+        private int tabIndexCounter = 1;
+
         private string savePath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,
             "memo.json"
@@ -25,7 +27,7 @@ namespace AlwaysOnTopMemo
             this.Icon = AppIcon;
 
             Text = "CaptureMemo";
-            Width = 500;
+            Width = 400;
             Height = 600;
 
             tabControl = new TabControl();
@@ -44,6 +46,7 @@ namespace AlwaysOnTopMemo
                 AddNewTab();
 
             AddPlusTab();
+            FixPlusTabPosition(); 
 
             FormClosing += (s, e) => SaveToJson();
         }
@@ -62,6 +65,20 @@ namespace AlwaysOnTopMemo
             return tabControl.TabPages[index].Text == "+";
         }
 
+        private void FixPlusTabPosition()
+        {
+            for (int i = 0; i < tabControl.TabPages.Count; i++)
+            {
+                if (tabControl.TabPages[i].Text == "+")
+                {
+                    var plus = tabControl.TabPages[i];
+                    tabControl.TabPages.RemoveAt(i);
+                    tabControl.TabPages.Add(plus);
+                    break;
+                }
+            }
+        }
+
         // =========================
         // ƒ^ƒu’Ç‰Á
         // =========================
@@ -74,13 +91,14 @@ namespace AlwaysOnTopMemo
             }
 
             var editor = CreateEditor();
-            var tab = new TabPage($"Tab {tabControl.TabCount}");
+            var tab = new TabPage($"Tab {tabIndexCounter++}");
 
             tab.Controls.Add(editor);
-
             // {‚Ì‘O‚É‘}“ü
-            tabControl.TabPages.Insert(tabControl.TabCount - 1, tab);
+            tabControl.TabPages.Insert(tabControl.TabPages.Count - 1, tab);
             tabControl.SelectedTab = tab;
+
+            FixPlusTabPosition();
         }
 
         private void CloseTab(int index)
@@ -88,6 +106,8 @@ namespace AlwaysOnTopMemo
             if (tabControl.TabCount <= 2) return; // {ŠÜ‚ß‚ÄÅ’á2
 
             tabControl.TabPages.RemoveAt(index);
+
+            FixPlusTabPosition();
         }
 
         // =========================
@@ -186,7 +206,9 @@ namespace AlwaysOnTopMemo
 
         private RichTextBox GetEditor()
         {
-            return tabControl.SelectedTab.Controls[0] as RichTextBox;
+            return tabControl.SelectedTab?.Controls.Count > 0
+                ? tabControl.SelectedTab.Controls[0] as RichTextBox
+                : null;
         }
 
         // =========================
@@ -230,8 +252,7 @@ namespace AlwaysOnTopMemo
             if (Clipboard.ContainsImage())
             {
                 var img = Clipboard.GetImage();
-
-                if (img == null) return; //
+                if (img == null) return;
 
                 InsertImage(editor, new Bitmap(img));
             }
@@ -253,6 +274,8 @@ namespace AlwaysOnTopMemo
         private void Editor_DragDrop(object sender, DragEventArgs e)
         {
             var editor = GetEditor();
+            if (editor == null) return;
+
             var files = (string[])e.Data.GetData(DataFormats.FileDrop);
 
             foreach (var file in files)
@@ -304,6 +327,7 @@ namespace AlwaysOnTopMemo
         private void SaveAsImage()
         {
             var editor = GetEditor();
+            if (editor == null) return;
 
             using var dlg = new SaveFileDialog();
             dlg.Filter = "PNG|*.png";
@@ -344,12 +368,13 @@ namespace AlwaysOnTopMemo
                 var editor = CreateEditor();
                 editor.Rtf = rtf;
 
-                var tab = new TabPage($"Tab {tabControl.TabCount + 1}");
+                var tab = new TabPage($"Tab {tabIndexCounter++}");
                 tab.Controls.Add(editor);
 
                 tabControl.TabPages.Add(tab);
             }
         }
+
         private static Icon LoadIcon(string fileName)
         {
             string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
