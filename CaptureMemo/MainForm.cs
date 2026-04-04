@@ -117,15 +117,27 @@ namespace AlwaysOnTopMemo
 
             searchBox.KeyDown += (s, e) =>
             {
-                if (e.KeyCode == Keys.Enter)
+                if (e.KeyCode == Keys.Escape)
                 {
-                    StartSearch(searchBox.Text);
-                    e.SuppressKeyPress = true;
+                    searchPanel.Visible = false;
                 }
             };
 
-            btnNext.Click += (s, e) => SearchNext();
-            btnPrev.Click += (s, e) => SearchPrev();
+            btnNext.Click += (s, e) =>
+            {
+                if (lastKeyword != searchBox.Text)
+                    StartSearch(searchBox.Text);
+                else
+                    SearchNext();
+            };
+
+            btnPrev.Click += (s, e) =>
+            {
+                if (lastKeyword != searchBox.Text)
+                    StartSearch(searchBox.Text);
+                else
+                    SearchPrev();
+            };
             btnClose.Click += (s, e) => searchPanel.Visible = false;
 
             LoadFromJson();
