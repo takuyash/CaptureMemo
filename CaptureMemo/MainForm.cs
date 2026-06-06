@@ -386,20 +386,51 @@ namespace AlwaysOnTopMemo
         private void TabControl_DrawItem(object sender, DrawItemEventArgs e)
         {
             var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias; // 描画を滑らかに
+
             var tabRect = tabControl.GetTabRect(e.Index);
             var tab = tabControl.TabPages[e.Index];
+            bool isSelected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
 
-            // ＋タブ
+            // --- 色の定義 ---
+            Color bgColor = isSelected ? Color.White : Color.FromArgb(240, 240, 240);
+            Color textColor = isSelected ? Color.Black : Color.FromArgb(100, 100, 100);
+            Color accentColor = Color.FromArgb(0, 120, 215); // 選択時のアクセントライン(青)
+
+            // 1. タブの背景
+            using (var b = new SolidBrush(bgColor))
+            {
+                g.FillRectangle(b, tabRect);
+            }
+
+            // 2. ＋タブの場合の特別描画
             if (tab.Text == "+")
             {
-                g.FillRectangle(Brushes.LightBlue, tabRect);
-                TextRenderer.DrawText(g, "+", Font, tabRect, Color.Black,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                using (var b = new SolidBrush(textColor))
+                {
+                    TextRenderer.DrawText(g, "＋", new Font(Font.FontFamily, 12, FontStyle.Bold), tabRect, textColor,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                }
                 return;
             }
 
-            // 通常タブ
-            g.FillRectangle(Brushes.LightGray, tabRect);
+            // 3. 選択状態の装飾
+            if (isSelected)
+            {
+                // 選択タブの上部にアクセントラインを引く
+                using (var p = new Pen(accentColor, 3))
+                {
+                    g.DrawLine(p, tabRect.Left, tabRect.Top + 1, tabRect.Right, tabRect.Top + 1);
+                }
+            }
+            else
+            {
+                // 非選択タブの右側に薄い区切り線を引く
+                using (var p = new Pen(Color.LightGray, 1))
+                {
+                    g.DrawLine(p, tabRect.Right - 1, tabRect.Top + 6, tabRect.Right - 1, tabRect.Bottom - 6);
+                }
+            }
 
             // タイトル 
             string title = tab.Text + "　";
@@ -409,32 +440,33 @@ namespace AlwaysOnTopMemo
                 Color.Black,
                 TextFormatFlags.NoPadding);
 
-            // ×ボタン
-            Rectangle closeRect = new Rectangle(
-                tabRect.Right - 18,
-                tabRect.Top + 4,
-                14,
-                14);
+            // 5. ×ボタンの描画
+            Rectangle closeRect = new Rectangle(tabRect.Right - 22, tabRect.Top + 4, 14, 14);
 
-            // ホバー時の背景
             if (hoverCloseIndex == e.Index)
             {
-                g.FillRectangle(Brushes.IndianRed, closeRect);
-                TextRenderer.DrawText(g, "×", Font, closeRect, Color.White,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                // ホバー時は丸い赤背景に白文字
+                using (var b = new SolidBrush(Color.FromArgb(232, 17, 35)))
+                {
+                    g.FillEllipse(b, closeRect);
+                }
+                TextRenderer.DrawText(g, "×", new Font(Font.FontFamily, 8, FontStyle.Bold), closeRect, Color.White,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             }
             else
             {
-                TextRenderer.DrawText(g, "×", Font, closeRect, Color.Black,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                // 通常時は目立たないグレー
+                TextRenderer.DrawText(g, "×", new Font(Font.FontFamily, 8, FontStyle.Bold), closeRect, Color.FromArgb(170, 170, 170),
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             }
 
+            // クリック判定用に領域を保存
             tab.Tag = closeRect;
 
-            // ゴースト描画
+            // 6. ドラッグ中のゴースト描画
             if (isDragging && dragGhostRect.HasValue)
             {
-                using var b = new SolidBrush(Color.FromArgb(120, Color.Gray));
+                using var b = new SolidBrush(Color.FromArgb(80, accentColor)); // 半透明の青
                 g.FillRectangle(b, dragGhostRect.Value);
             }
         }
@@ -634,7 +666,7 @@ namespace AlwaysOnTopMemo
                 editor.Paste();
             }
         }
-        
+
         // =========================
         // Drag & Drop
         // =========================
@@ -668,14 +700,14 @@ namespace AlwaysOnTopMemo
                 catch { }
             }
         }
-        
+
         // =========================
         // 画像挿入
         // =========================
         private void InsertImage(RichTextBox editor, Image img)
         {
             if (editor == null || img == null) return;
-           // クリップボード退避
+            // クリップボード退避
             var backup = Clipboard.GetDataObject();
 
             try
