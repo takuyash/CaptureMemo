@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Windows.Forms;
 using Timer = System.Windows.Forms.Timer;
@@ -13,10 +14,9 @@ namespace AlwaysOnTopMemo
     {
         private TabControl tabControl;
         private int hoverCloseIndex = -1;
+        private int hoverTabIndex = -1; // タブ全体のホバー判定用
         private const int MAX_TABS = 10;
         public static Icon AppIcon;
-
-        private int tabIndexCounter = 1;
 
         private string savePath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,
@@ -51,19 +51,22 @@ namespace AlwaysOnTopMemo
             this.Icon = AppIcon;
 
             Text = "CaptureMemo";
-            Width = 400;
-            Height = 600;
+            Width = 420;
+            Height = 650;
+            this.BackColor = Color.White; // 全体の背景色をクリーンな白に
 
             this.TopMost = true;
             this.Activated += (s, e) => this.TopMost = true;
             this.Deactivate += (s, e) => this.TopMost = true;
 
+            // --- TabControlの設定 ---
             tabControl = new TabControl();
             tabControl.Dock = DockStyle.Fill;
             tabControl.DrawMode = TabDrawMode.OwnerDrawFixed;
 
             tabControl.SizeMode = TabSizeMode.Fixed;
             tabControl.ItemSize = new Size(60, 24);
+            tabControl.Font = new Font("Meiryo", 9f); // サイズに合わせてフォントを微小調整
 
             tabControl.DrawItem += TabControl_DrawItem;
             tabControl.MouseDown += TabControl_MouseDown;
@@ -73,6 +76,7 @@ namespace AlwaysOnTopMemo
             tabControl.MouseLeave += (s, e) =>
             {
                 hoverCloseIndex = -1;
+                hoverTabIndex = -1;
                 tabControl.Invalidate();
             };
 
@@ -86,28 +90,21 @@ namespace AlwaysOnTopMemo
             // 検索UI
             // =========================
             searchPanel = new Panel();
-            searchPanel.Height = 30;
+            searchPanel.Height = 44;
             searchPanel.Dock = DockStyle.Top;
             searchPanel.Visible = false;
+            searchPanel.BackColor = Color.FromArgb(245, 245, 245);
 
             searchBox = new TextBox();
-            searchBox.Left = 5;
-            searchBox.Width = 180;
+            searchBox.Left = 12;
+            searchBox.Top = 10;
+            searchBox.Width = 200;
+            searchBox.Font = new Font("Meiryo", 10);
+            searchBox.BorderStyle = BorderStyle.FixedSingle;
 
-            btnPrev = new Button();
-            btnPrev.Text = "↑";
-            btnPrev.Left = 190;
-            btnPrev.Width = 30;
-
-            btnNext = new Button();
-            btnNext.Text = "↓";
-            btnNext.Left = 225;
-            btnNext.Width = 30;
-
-            btnClose = new Button();
-            btnClose.Text = "×";
-            btnClose.Left = 260;
-            btnClose.Width = 30;
+            btnPrev = CreateFlatButton("↑", 220, 9, 32);
+            btnNext = CreateFlatButton("↓", 257, 9, 32);
+            btnClose = CreateFlatButton("×", 294, 9, 32);
 
             searchPanel.Controls.Add(searchBox);
             searchPanel.Controls.Add(btnPrev);
@@ -117,35 +114,14 @@ namespace AlwaysOnTopMemo
             Controls.Add(searchPanel);
             searchPanel.BringToFront();
 
-            searchBox.KeyDown += (s, e) =>
-            {
-                if (e.KeyCode == Keys.Escape)
-                {
-                    searchPanel.Visible = false;
-                }
-            };
-
-            btnNext.Click += (s, e) =>
-            {
-                if (lastKeyword != searchBox.Text)
-                    StartSearch(searchBox.Text);
-                else
-                    SearchNext();
-            };
-
-            btnPrev.Click += (s, e) =>
-            {
-                if (lastKeyword != searchBox.Text)
-                    StartSearch(searchBox.Text);
-                else
-                    SearchPrev();
-            };
+            searchBox.KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) searchPanel.Visible = false; };
+            btnNext.Click += (s, e) => { if (lastKeyword != searchBox.Text) StartSearch(searchBox.Text); else SearchNext(); };
+            btnPrev.Click += (s, e) => { if (lastKeyword != searchBox.Text) StartSearch(searchBox.Text); else SearchPrev(); };
             btnClose.Click += (s, e) => searchPanel.Visible = false;
 
             LoadFromJson();
 
-            if (tabControl.TabCount == 0)
-                AddNewTab();
+            if (tabControl.TabCount == 0) AddNewTab();
 
             AddPlusTab();
             FixPlusTabPosition();
@@ -159,30 +135,29 @@ namespace AlwaysOnTopMemo
             FormClosing += (s, e) => SaveToJson();
         }
 
+        private Button CreateFlatButton(string text, int x, int y, int size)
+        {
+            var btn = new Button();
+            btn.Text = text;
+            btn.Font = new Font("Meiryo", 10, FontStyle.Bold);
+            btn.SetBounds(x, y, size, size - 6);
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.FlatAppearance.BorderSize = 0;
+            btn.BackColor = Color.FromArgb(230, 230, 230);
+            btn.Cursor = Cursors.Hand;
+
+            btn.MouseEnter += (s, e) => btn.BackColor = Color.FromArgb(210, 210, 210);
+            btn.MouseLeave += (s, e) => btn.BackColor = Color.FromArgb(230, 230, 230);
+
+            return btn;
+        }
+
         // =========================
         // 検索処理
         // =========================
-        private void StartSearch(string keyword)
-        {
-            if (string.IsNullOrEmpty(keyword)) return;
-
-            lastKeyword = keyword;
-            currentTabIndex = tabControl.SelectedIndex;
-            currentIndex = 0;
-
-            SearchNext();
-        }
-
-        private void SearchNext()
-        {
-            Search(true);
-        }
-
-        private void SearchPrev()
-        {
-            Search(false);
-        }
-
+        private void StartSearch(string keyword) { if (string.IsNullOrEmpty(keyword)) return; lastKeyword = keyword; currentTabIndex = tabControl.SelectedIndex; currentIndex = 0; SearchNext(); }
+        private void SearchNext() { Search(true); }
+        private void SearchPrev() { Search(false); }
         private void Search(bool forward)
         {
             if (string.IsNullOrEmpty(lastKeyword)) return;
@@ -191,13 +166,7 @@ namespace AlwaysOnTopMemo
 
             for (int t = 0; t < tabCount; t++)
             {
-                int index;
-
-                if (forward)
-                    index = (currentTabIndex + t) % tabCount;
-                else
-                    index = (currentTabIndex - t + tabCount) % tabCount;
-
+                int index = forward ? (currentTabIndex + t) % tabCount : (currentTabIndex - t + tabCount) % tabCount;
                 var tab = tabControl.TabPages[index];
 
                 if (tab.Text == "+") continue;
@@ -205,41 +174,11 @@ namespace AlwaysOnTopMemo
                 var editor = tab.Controls[0] as RichTextBox;
                 if (editor == null) continue;
 
-                int start;
-
-                if (index == currentTabIndex)
-                {
-                    start = currentIndex;
-                }
-                else
-                {
-                    start = forward ? 0 : editor.TextLength;
-                }
-
+                int start = (index == currentTabIndex) ? currentIndex : (forward ? 0 : editor.TextLength);
                 int found = -1;
 
-                if (forward)
-                {
-                    if (start <= editor.TextLength)
-                    {
-                        found = editor.Text.IndexOf(
-                            lastKeyword,
-                            start,
-                            StringComparison.OrdinalIgnoreCase
-                        );
-                    }
-                }
-                else
-                {
-                    if (start > 0)
-                    {
-                        found = editor.Text.LastIndexOf(
-                            lastKeyword,
-                            start - 1,
-                            StringComparison.OrdinalIgnoreCase
-                        );
-                    }
-                }
+                if (forward) { if (start <= editor.TextLength) found = editor.Text.IndexOf(lastKeyword, start, StringComparison.OrdinalIgnoreCase); }
+                else { if (start > 0) found = editor.Text.LastIndexOf(lastKeyword, start - 1, StringComparison.OrdinalIgnoreCase); }
 
                 if (found >= 0)
                 {
@@ -251,12 +190,7 @@ namespace AlwaysOnTopMemo
                     editor.Focus();
 
                     currentTabIndex = index;
-
-                    if (forward)
-                        currentIndex = found + lastKeyword.Length;
-                    else
-                        currentIndex = found;
-
+                    currentIndex = forward ? found + lastKeyword.Length : found;
                     return;
                 }
             }
@@ -265,32 +199,14 @@ namespace AlwaysOnTopMemo
         }
 
         // =========================
-        // ＋タブ
+        // タブ管理
         // =========================
-        private void AddPlusTab()
-        {
-            var plus = new TabPage("+");
-            tabControl.TabPages.Add(plus);
-        }
-
-        private bool IsPlusTab(int index)
-        {
-            return tabControl.TabPages[index].Text == "+";
-        }
-
+        private void AddPlusTab() { tabControl.TabPages.Add(new TabPage("+")); }
+        private bool IsPlusTab(int index) { return tabControl.TabPages[index].Text == "+"; }
         private void FixPlusTabPosition()
         {
             TabPage plus = null;
-
-            foreach (TabPage tab in tabControl.TabPages)
-            {
-                if (tab.Text == "+")
-                {
-                    plus = tab;
-                    break;
-                }
-            }
-
+            foreach (TabPage tab in tabControl.TabPages) { if (tab.Text == "+") { plus = tab; break; } }
             if (plus == null) return;
 
             tabControl.TabPages.Remove(plus);
@@ -313,6 +229,7 @@ namespace AlwaysOnTopMemo
 
             var editor = CreateEditor();
             var tab = new TabPage($"Tab {nextNo}");
+            tab.BackColor = Color.White;
             tab.Controls.Add(editor);
 
             tabControl.TabPages.Add(tab); // 一旦追加
@@ -330,37 +247,38 @@ namespace AlwaysOnTopMemo
 
         private void TabControl_MouseMove(object sender, MouseEventArgs e)
         {
-            int newHoverIndex = -1;
+            int newHoverCloseIndex = -1;
+            int newHoverTabIndex = -1;
 
             for (int i = 0; i < tabControl.TabCount; i++)
             {
-                var tab = tabControl.TabPages[i];
-
-                if (tab.Tag is Rectangle rect)
+                var tabRect = tabControl.GetTabRect(i);
+                if (tabRect.Contains(e.Location))
                 {
-                    if (rect.Contains(e.Location))
-                    {
-                        newHoverIndex = i;
-                        break;
-                    }
+                    newHoverTabIndex = i;
+                }
+
+                var tab = tabControl.TabPages[i];
+                if (tab.Tag is Rectangle rect && rect.Contains(e.Location))
+                {
+                    newHoverCloseIndex = i;
+                    break;
                 }
             }
 
-            if (hoverCloseIndex != newHoverIndex)
-            {
-                hoverCloseIndex = newHoverIndex;
-                tabControl.Invalidate(); // 再描画
-            }
+            bool needsRedraw = false;
+            if (hoverCloseIndex != newHoverCloseIndex) { hoverCloseIndex = newHoverCloseIndex; needsRedraw = true; }
+            if (hoverTabIndex != newHoverTabIndex) { hoverTabIndex = newHoverTabIndex; needsRedraw = true; }
+
+            if (needsRedraw) tabControl.Invalidate(); // 再描画
 
             // ドラッグ中
             if (isDragging && dragTabIndex >= 0)
             {
-                dragGhostRect = new Rectangle(e.X - 30, e.Y - 10, 60, 20);
-
+                dragGhostRect = new Rectangle(e.X - 30, e.Y - 10, 60, 24);
                 for (int i = 0; i < tabControl.TabCount; i++)
                 {
-                    if (i == dragTabIndex) continue;
-                    if (IsPlusTab(i)) continue;
+                    if (i == dragTabIndex || IsPlusTab(i)) continue;
 
                     var rect = tabControl.GetTabRect(i);
                     if (rect.Contains(e.Location))
@@ -381,33 +299,32 @@ namespace AlwaysOnTopMemo
         }
 
         // =========================
-        // 描画
+        // モダンな描画処理 (コンパクト版に合わせて座標調整)
         // =========================
         private void TabControl_DrawItem(object sender, DrawItemEventArgs e)
         {
             var g = e.Graphics;
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias; // 描画を滑らかに
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
             var tabRect = tabControl.GetTabRect(e.Index);
             var tab = tabControl.TabPages[e.Index];
             bool isSelected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            bool isHovered = (hoverTabIndex == e.Index);
 
             // --- 色の定義 ---
-            Color bgColor = isSelected ? Color.White : Color.FromArgb(240, 240, 240);
-            Color textColor = isSelected ? Color.Black : Color.FromArgb(100, 100, 100);
-            Color accentColor = Color.FromArgb(0, 120, 215); // 選択時のアクセントライン(青)
+            Color bgColor = isSelected ? Color.White : (isHovered ? Color.FromArgb(235, 235, 235) : Color.FromArgb(245, 245, 245));
+            Color textColor = isSelected ? Color.Black : Color.FromArgb(120, 120, 120);
+            Color accentColor = Color.FromArgb(0, 120, 215);
 
             // 1. タブの背景
-            using (var b = new SolidBrush(bgColor))
-            {
-                g.FillRectangle(b, tabRect);
-            }
+            using (var b = new SolidBrush(bgColor)) { g.FillRectangle(b, tabRect); }
 
             // 2. ＋タブの場合の特別描画
             if (tab.Text == "+")
             {
                 using (var b = new SolidBrush(textColor))
                 {
+                    // サイズを 14 -> 12 に戻す
                     TextRenderer.DrawText(g, "＋", new Font(Font.FontFamily, 12, FontStyle.Bold), tabRect, textColor,
                         TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
                 }
@@ -417,7 +334,7 @@ namespace AlwaysOnTopMemo
             // 3. 選択状態の装飾
             if (isSelected)
             {
-                // 選択タブの上部にアクセントラインを引く
+                // アクセントライン
                 using (var p = new Pen(accentColor, 3))
                 {
                     g.DrawLine(p, tabRect.Left, tabRect.Top + 1, tabRect.Right, tabRect.Top + 1);
@@ -425,48 +342,41 @@ namespace AlwaysOnTopMemo
             }
             else
             {
-                // 非選択タブの右側に薄い区切り線を引く
-                using (var p = new Pen(Color.LightGray, 1))
+                // 非選択タブの境界線 (高さ24に合わせて短く)
+                using (var p = new Pen(Color.FromArgb(220, 220, 220), 1))
                 {
-                    g.DrawLine(p, tabRect.Right - 1, tabRect.Top + 6, tabRect.Right - 1, tabRect.Bottom - 6);
+                    g.DrawLine(p, tabRect.Right - 1, tabRect.Top + 5, tabRect.Right - 1, tabRect.Bottom - 5);
                 }
             }
 
-            // タイトル 
-            string title = tab.Text + "　";
-
+            // 4. タイトル (60px幅に合わせて余白を削る)
+            string title = tab.Text;
             TextRenderer.DrawText(g, title, Font,
-                new Rectangle(tabRect.X + 6, tabRect.Y + 4, tabRect.Width - 30, tabRect.Height),
-                Color.Black,
-                TextFormatFlags.NoPadding);
+                new Rectangle(tabRect.X + 4, tabRect.Y + 1, tabRect.Width - 22, tabRect.Height),
+                textColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
-            // 5. ×ボタンの描画
-            Rectangle closeRect = new Rectangle(tabRect.Right - 22, tabRect.Top + 4, 14, 14);
+            // 5. ×ボタンの描画 (高さ24に合わせて位置を再計算)
+            Rectangle closeRect = new Rectangle(tabRect.Right - 18, tabRect.Top + 5, 14, 14);
 
             if (hoverCloseIndex == e.Index)
             {
-                // ホバー時は丸い赤背景に白文字
-                using (var b = new SolidBrush(Color.FromArgb(232, 17, 35)))
-                {
-                    g.FillEllipse(b, closeRect);
-                }
+                using (var b = new SolidBrush(Color.FromArgb(232, 17, 35))) { g.FillEllipse(b, closeRect); }
                 TextRenderer.DrawText(g, "×", new Font(Font.FontFamily, 8, FontStyle.Bold), closeRect, Color.White,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             }
             else
             {
-                // 通常時は目立たないグレー
-                TextRenderer.DrawText(g, "×", new Font(Font.FontFamily, 8, FontStyle.Bold), closeRect, Color.FromArgb(170, 170, 170),
+                Color crossColor = isSelected ? Color.FromArgb(150, 150, 150) : Color.FromArgb(200, 200, 200);
+                TextRenderer.DrawText(g, "×", new Font(Font.FontFamily, 8, FontStyle.Bold), closeRect, crossColor,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             }
 
-            // クリック判定用に領域を保存
             tab.Tag = closeRect;
 
             // 6. ドラッグ中のゴースト描画
             if (isDragging && dragGhostRect.HasValue)
             {
-                using var b = new SolidBrush(Color.FromArgb(80, accentColor)); // 半透明の青
+                using var b = new SolidBrush(Color.FromArgb(60, accentColor));
                 g.FillRectangle(b, dragGhostRect.Value);
             }
         }
@@ -479,39 +389,18 @@ namespace AlwaysOnTopMemo
             for (int i = 0; i < tabControl.TabCount; i++)
             {
                 var tab = tabControl.TabPages[i];
-
-                // 右クリック
-                if (e.Button == MouseButtons.Right &&
-                    tabControl.GetTabRect(i).Contains(e.Location))
+                if (e.Button == MouseButtons.Right && tabControl.GetTabRect(i).Contains(e.Location))
                 {
                     if (IsPlusTab(i)) return;
-
                     rightClickTabIndex = i;
                     ShowContextMenu(e.Location);
                     return;
                 }
 
-                // ＋クリック
-                if (IsPlusTab(i))
-                {
-                    if (tabControl.GetTabRect(i).Contains(e.Location))
-                    {
-                        AddNewTab();
-                        return;
-                    }
-                }
+                if (IsPlusTab(i) && tabControl.GetTabRect(i).Contains(e.Location)) { AddNewTab(); return; }
 
-                // ×クリック
-                if (tab.Tag is Rectangle rect)
-                {
-                    if (rect.Contains(e.Location))
-                    {
-                        CloseTab(i);
-                        return;
-                    }
-                }
+                if (tab.Tag is Rectangle rect && rect.Contains(e.Location)) { CloseTab(i); return; }
 
-                // ドラッグ開始
                 if (tabControl.GetTabRect(i).Contains(e.Location))
                 {
                     dragTabIndex = i;
@@ -523,32 +412,24 @@ namespace AlwaysOnTopMemo
         private void ShowContextMenu(Point location)
         {
             var menu = new ContextMenuStrip();
-
+            menu.RenderMode = ToolStripRenderMode.Professional;
             menu.Items.Add("削除", null, (s, e) => CloseTab(rightClickTabIndex));
-
             menu.Items.Add("複製", null, (s, e) =>
             {
                 var src = tabControl.TabPages[rightClickTabIndex];
                 var editor = CreateEditor();
                 editor.Rtf = ((RichTextBox)src.Controls[0]).Rtf;
-
                 var tab = new TabPage(src.Text + "_copy");
                 tab.Controls.Add(editor);
-
                 tabControl.TabPages.Insert(rightClickTabIndex + 1, tab);
                 FixPlusTabPosition();
             });
-
             menu.Items.Add("名前変更", null, (s, e) =>
             {
                 var tab = tabControl.TabPages[rightClickTabIndex];
-                string input = Microsoft.VisualBasic.Interaction.InputBox(
-                    "タブ名を入力", "名前変更", tab.Text);
-
-                if (!string.IsNullOrWhiteSpace(input))
-                    tab.Text = input;
+                string input = Microsoft.VisualBasic.Interaction.InputBox("タブ名を入力", "名前変更", tab.Text);
+                if (!string.IsNullOrWhiteSpace(input)) tab.Text = input;
             });
-
             menu.Show(tabControl, location);
         }
 
@@ -560,36 +441,23 @@ namespace AlwaysOnTopMemo
             tabControl.Invalidate();
         }
 
-        // ダブルクリックで名前変更
         private void TabControl_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             for (int i = 0; i < tabControl.TabCount; i++)
             {
                 if (IsPlusTab(i)) continue;
-
                 if (tabControl.GetTabRect(i).Contains(e.Location))
                 {
-                    string current = tabControl.TabPages[i].Text;
-
-                    string input = Microsoft.VisualBasic.Interaction.InputBox(
-                        "タブ名を入力",
-                        "名前変更",
-                        current);
-
-                    if (!string.IsNullOrWhiteSpace(input))
-                    {
-                        tabControl.TabPages[i].Text = input;
-                    }
+                    string input = Microsoft.VisualBasic.Interaction.InputBox("タブ名を入力", "名前変更", tabControl.TabPages[i].Text);
+                    if (!string.IsNullOrWhiteSpace(input)) tabControl.TabPages[i].Text = input;
                     break;
                 }
             }
         }
 
-        // ＋タブ選択防止
         private void TabControl_Selecting(object sender, TabControlCancelEventArgs e)
         {
-            if (e.TabPage.Text == "+")
-                e.Cancel = true;
+            if (e.TabPage != null && e.TabPage.Text == "+") e.Cancel = true;
         }
 
         // =========================
@@ -600,6 +468,8 @@ namespace AlwaysOnTopMemo
             var editor = new RichTextBox();
             editor.Dock = DockStyle.Fill;
             editor.Font = new Font("Meiryo", 11);
+            editor.BorderStyle = BorderStyle.None;
+            editor.BackColor = Color.White;
             editor.AllowDrop = true;
 
             editor.KeyDown += Editor_KeyDown;
@@ -609,216 +479,122 @@ namespace AlwaysOnTopMemo
             return editor;
         }
 
-        private RichTextBox GetEditor()
-        {
-            return tabControl.SelectedTab?.Controls.Count > 0
-                ? tabControl.SelectedTab.Controls[0] as RichTextBox
-                : null;
-        }
+        private RichTextBox GetEditor() { return tabControl.SelectedTab?.Controls.Count > 0 ? tabControl.SelectedTab.Controls[0] as RichTextBox : null; }
 
         // =========================
-        // キー操作
+        // キー・ファイル操作
         // =========================
         private void Editor_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Control && e.KeyCode == Keys.T)
-            {
-                AddNewTab();
-                e.SuppressKeyPress = true;
-            }
-
-            if (e.Control && e.KeyCode == Keys.W)
-            {
-                CloseTab(tabControl.SelectedIndex);
-                e.SuppressKeyPress = true;
-            }
-
-            if (e.Control && e.KeyCode == Keys.V)
-            {
-                PasteClipboard();
-                e.SuppressKeyPress = true;
-            }
-
-            if (e.Control && e.KeyCode == Keys.S)
-            {
-                SaveAsImage();
-                e.SuppressKeyPress = true;
-            }
+            if (e.Control && e.KeyCode == Keys.T) { AddNewTab(); e.SuppressKeyPress = true; }
+            if (e.Control && e.KeyCode == Keys.W) { CloseTab(tabControl.SelectedIndex); e.SuppressKeyPress = true; }
+            if (e.Control && e.KeyCode == Keys.V) { PasteClipboard(); e.SuppressKeyPress = true; }
+            if (e.Control && e.KeyCode == Keys.S) { SaveAsImage(); e.SuppressKeyPress = true; }
         }
 
-        // =========================
-        // クリップボード貼り付け
-        // =========================
         private void PasteClipboard()
         {
             var editor = GetEditor();
             if (editor == null) return;
-
             if (Clipboard.ContainsImage())
             {
                 var img = Clipboard.GetImage();
-                if (img == null) return;
-
-                InsertImage(editor, new Bitmap(img));
+                if (img != null) InsertImage(editor, new Bitmap(img));
             }
-            else if (Clipboard.ContainsText())
-            {
-                editor.Paste();
-            }
+            else if (Clipboard.ContainsText()) { editor.Paste(); }
         }
 
-        // =========================
-        // Drag & Drop
-        // =========================
-        private void Editor_DragEnter(object sender, DragEventArgs e)
-        {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-                e.Effect = DragDropEffects.Copy;
-        }
-
+        private void Editor_DragEnter(object sender, DragEventArgs e) { if (e.Data.GetDataPresent(DataFormats.FileDrop)) e.Effect = DragDropEffects.Copy; }
         private void Editor_DragDrop(object sender, DragEventArgs e)
         {
             var editor = GetEditor();
             if (editor == null) return;
-
             var files = (string[])e.Data.GetData(DataFormats.FileDrop);
-
             foreach (var file in files)
             {
-                try
-                {
-                    using var img = Image.FromFile(file);
-                    InsertImage(editor, new Bitmap(img));
-                    continue;
-                }
-                catch { }
-
-                try
-                {
-                    editor.AppendText(File.ReadAllText(file));
-                }
-                catch { }
+                try { using var img = Image.FromFile(file); InsertImage(editor, new Bitmap(img)); continue; } catch { }
+                try { editor.AppendText(File.ReadAllText(file)); } catch { }
             }
         }
 
-        // =========================
-        // 画像挿入
-        // =========================
         private void InsertImage(RichTextBox editor, Image img)
         {
             if (editor == null || img == null) return;
-            // クリップボード退避
             var backup = Clipboard.GetDataObject();
-
-            try
-            {
-                Clipboard.SetImage(img);
-                editor.Paste();
-            }
-            finally
-            {
-                try
-                {
-                    if (backup != null)
-                        Clipboard.SetDataObject(backup);
-                }
-                catch { }
-            }
+            try { Clipboard.SetImage(img); editor.Paste(); }
+            finally { try { if (backup != null) Clipboard.SetDataObject(backup); } catch { } }
         }
 
-        // =========================
-        // 画像として保存
-        // =========================
         private void SaveAsImage()
         {
             var editor = GetEditor();
             if (editor == null) return;
-
             using var dlg = new SaveFileDialog();
             dlg.Filter = "PNG|*.png";
-
             if (dlg.ShowDialog() != DialogResult.OK) return;
 
             int width = editor.Width;
             int height = editor.Height;
-
             int totalHeight = editor.GetPositionFromCharIndex(editor.TextLength).Y + height;
 
             Bitmap finalBmp = new Bitmap(width, totalHeight);
-
             using (Graphics g = Graphics.FromImage(finalBmp))
             {
                 int offset = 0;
-
                 while (offset < totalHeight)
                 {
                     editor.AutoScrollOffset = new Point(0, offset);
-
                     Bitmap tmp = new Bitmap(width, height);
                     editor.DrawToBitmap(tmp, new Rectangle(0, 0, width, height));
-
                     g.DrawImage(tmp, 0, offset);
-
                     offset += height;
                 }
             }
-
             finalBmp.Save(dlg.FileName, ImageFormat.Png);
         }
 
         // =========================
-        // JSON保存
+        // データ保存/読み込み
         // =========================
         private void SaveToJson()
         {
             var list = new List<TabData>();
-
             foreach (TabPage tab in tabControl.TabPages)
             {
                 if (tab.Text == "+") continue;
-
                 var editor = tab.Controls[0] as RichTextBox;
-
-                list.Add(new TabData
-                {
-                    Title = tab.Text,
-                    Rtf = editor.Rtf
-                });
+                list.Add(new TabData { Title = tab.Text, Rtf = editor.Rtf });
             }
-
             File.WriteAllText(savePath, JsonSerializer.Serialize(list));
         }
 
         private void LoadFromJson()
         {
             if (!File.Exists(savePath)) return;
-
-            var list = JsonSerializer.Deserialize<List<TabData>>(File.ReadAllText(savePath));
-
-            foreach (var item in list)
+            try
             {
-                var editor = CreateEditor();
-                editor.Rtf = item.Rtf;
-
-                var tab = new TabPage(item.Title);
-                tab.Controls.Add(editor);
-
-                tabControl.TabPages.Add(tab);
+                var list = JsonSerializer.Deserialize<List<TabData>>(File.ReadAllText(savePath));
+                foreach (var item in list)
+                {
+                    var editor = CreateEditor();
+                    editor.Rtf = item.Rtf;
+                    var tab = new TabPage(item.Title);
+                    tab.BackColor = Color.White;
+                    tab.Controls.Add(editor);
+                    tabControl.TabPages.Add(tab);
+                }
             }
+            catch { }
         }
 
         private static Icon LoadIcon(string resourceName)
         {
             var assembly = typeof(MainForm).Assembly;
-
-            // リソース名の確認
-            string fullName = assembly.GetManifestResourceNames()
-                                      .FirstOrDefault(n => n.EndsWith(resourceName, StringComparison.OrdinalIgnoreCase));
+            string fullName = assembly.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(resourceName, StringComparison.OrdinalIgnoreCase));
             if (fullName != null)
             {
                 using Stream stream = assembly.GetManifestResourceStream(fullName);
-                if (stream != null)
-                    return new Icon(stream);
+                if (stream != null) return new Icon(stream);
             }
             return SystemIcons.Application;
         }
@@ -834,32 +610,17 @@ namespace AlwaysOnTopMemo
             }
         }
 
-        // 追加：空き番号取得
         private int GetNextTabNumber()
         {
             var used = new HashSet<int>();
-
             foreach (TabPage tab in tabControl.TabPages)
             {
-                if (tab.Text.StartsWith("Tab "))
-                {
-                    if (int.TryParse(tab.Text.Replace("Tab ", ""), out int num))
-                        used.Add(num);
-                }
+                if (tab.Text.StartsWith("Tab ") && int.TryParse(tab.Text.Replace("Tab ", ""), out int num)) used.Add(num);
             }
-
-            for (int i = 1; i <= MAX_TABS; i++)
-            {
-                if (!used.Contains(i))
-                    return i;
-            }
-
+            for (int i = 1; i <= MAX_TABS; i++) { if (!used.Contains(i)) return i; }
             return -1;
         }
 
-        // =========================
-        // 起動
-        // =========================
         [STAThread]
         static void Main()
         {
