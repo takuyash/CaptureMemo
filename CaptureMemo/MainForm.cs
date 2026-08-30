@@ -341,8 +341,11 @@ namespace AlwaysOnTopMemo
             bool isHovered = (hoverTabIndex == e.Index);
 
             // --- êFÇÃíËã` ---
-            Color bgColor = isSelected ? Color.White : (isHovered ? Color.FromArgb(235, 235, 235) : Color.FromArgb(245, 245, 245));
-            Color textColor = isSelected ? Color.Black : Color.FromArgb(120, 120, 120);
+            Color bgColor = isSelected
+                ? Color.White
+                : (isHovered ? Color.FromArgb(235, 235, 235) : Color.FromArgb(245, 245, 245));
+
+            Color textColor = Color.Black;   // Å© ñ¢ëIëÇ≈Ç‡çï
             Color accentColor = Color.FromArgb(0, 120, 215);
 
             // 1. É^ÉuÇÃîwåi
@@ -384,20 +387,46 @@ namespace AlwaysOnTopMemo
                 new Rectangle(tabRect.X + 4, tabRect.Y + 1, tabRect.Width - 22, tabRect.Height),
                 textColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
-            // 5. Å~É{É^ÉìÇÃï`âÊ (çÇÇ≥24Ç…çáÇÌÇπÇƒà íuÇçƒåvéZ)
-            Rectangle closeRect = new Rectangle(tabRect.Right - 18, tabRect.Top + 5, 14, 14);
+            // 5. Å~É{É^ÉìÇÃï`âÊ
+            Rectangle closeRect = new Rectangle(
+                tabRect.Right - 18,
+                tabRect.Top + 5,
+                14,
+                14
+            );
 
             if (hoverCloseIndex == e.Index)
             {
-                using (var b = new SolidBrush(Color.FromArgb(232, 17, 35))) { g.FillEllipse(b, closeRect); }
-                TextRenderer.DrawText(g, "Å~", new Font(Font.FontFamily, 8, FontStyle.Bold), closeRect, Color.White,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                // É}ÉEÉXÉIÅ[ÉoÅ[éûÇæÇØê‘îwåi
+                using (var b = new SolidBrush(Color.FromArgb(232, 17, 35)))
+                {
+                    g.FillEllipse(b, closeRect);
+                }
+
+                TextRenderer.DrawText(
+                    g,
+                    "Å~",
+                    new Font(Font.FontFamily, 8, FontStyle.Bold),
+                    closeRect,
+                    Color.White,
+                    TextFormatFlags.HorizontalCenter |
+                    TextFormatFlags.VerticalCenter |
+                    TextFormatFlags.NoPadding
+                );
             }
             else
             {
-                Color crossColor = isSelected ? Color.FromArgb(150, 150, 150) : Color.FromArgb(200, 200, 200);
-                TextRenderer.DrawText(g, "Å~", new Font(Font.FontFamily, 8, FontStyle.Bold), closeRect, crossColor,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                // í èÌéûÇ‡ïÅí Ç…å©Ç¶ÇÈêFÇ…Ç∑ÇÈ
+                TextRenderer.DrawText(
+                    g,
+                    "Å~",
+                    new Font(Font.FontFamily, 8, FontStyle.Bold),
+                    closeRect,
+                    Color.FromArgb(100, 100, 100),
+                    TextFormatFlags.HorizontalCenter |
+                    TextFormatFlags.VerticalCenter |
+                    TextFormatFlags.NoPadding
+                );
             }
 
             tab.Tag = closeRect;
