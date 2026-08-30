@@ -61,7 +61,7 @@ namespace AlwaysOnTopMemo
             this.Deactivate += (s, e) => this.TopMost = true;
 
             // --- TabControlの設定 ---
-            tabControl = new TabControl();
+            tabControl = new DoubleBufferedTabControl();
             tabControl.Dock = DockStyle.Fill;
             tabControl.DrawMode = TabDrawMode.OwnerDrawFixed;
 
@@ -76,9 +76,14 @@ namespace AlwaysOnTopMemo
             tabControl.MouseMove += TabControl_MouseMove;
             tabControl.MouseLeave += (s, e) =>
             {
+                if (hoverTabIndex >= 0 && hoverTabIndex < tabControl.TabCount)
+                    tabControl.Invalidate(tabControl.GetTabRect(hoverTabIndex));
+
+                if (hoverCloseIndex >= 0 && hoverCloseIndex < tabControl.TabCount)
+                    tabControl.Invalidate(tabControl.GetTabRect(hoverCloseIndex));
+
                 hoverCloseIndex = -1;
                 hoverTabIndex = -1;
-                tabControl.Invalidate();
             };
 
             tabControl.MouseUp += TabControl_MouseUp;
@@ -254,12 +259,14 @@ namespace AlwaysOnTopMemo
             for (int i = 0; i < tabControl.TabCount; i++)
             {
                 var tabRect = tabControl.GetTabRect(i);
+
                 if (tabRect.Contains(e.Location))
                 {
                     newHoverTabIndex = i;
                 }
 
                 var tab = tabControl.TabPages[i];
+
                 if (tab.Tag is Rectangle rect && rect.Contains(e.Location))
                 {
                     newHoverCloseIndex = i;
@@ -267,21 +274,42 @@ namespace AlwaysOnTopMemo
                 }
             }
 
-            bool needsRedraw = false;
-            if (hoverCloseIndex != newHoverCloseIndex) { hoverCloseIndex = newHoverCloseIndex; needsRedraw = true; }
-            if (hoverTabIndex != newHoverTabIndex) { hoverTabIndex = newHoverTabIndex; needsRedraw = true; }
+            // ホバーが変わったタブだけ再描画
+            if (hoverTabIndex != newHoverTabIndex)
+            {
+                if (hoverTabIndex >= 0 && hoverTabIndex < tabControl.TabCount)
+                    tabControl.Invalidate(tabControl.GetTabRect(hoverTabIndex));
 
-            if (needsRedraw) tabControl.Invalidate(); // 再描画
+                if (newHoverTabIndex >= 0 && newHoverTabIndex < tabControl.TabCount)
+                    tabControl.Invalidate(tabControl.GetTabRect(newHoverTabIndex));
+
+                hoverTabIndex = newHoverTabIndex;
+            }
+
+            // ×ボタンのホバーが変わったタブだけ再描画
+            if (hoverCloseIndex != newHoverCloseIndex)
+            {
+                if (hoverCloseIndex >= 0 && hoverCloseIndex < tabControl.TabCount)
+                    tabControl.Invalidate(tabControl.GetTabRect(hoverCloseIndex));
+
+                if (newHoverCloseIndex >= 0 && newHoverCloseIndex < tabControl.TabCount)
+                    tabControl.Invalidate(tabControl.GetTabRect(newHoverCloseIndex));
+
+                hoverCloseIndex = newHoverCloseIndex;
+            }
 
             // ドラッグ中
             if (isDragging && dragTabIndex >= 0)
             {
                 dragGhostRect = new Rectangle(e.X - 30, e.Y - 10, 60, 24);
+
                 for (int i = 0; i < tabControl.TabCount; i++)
                 {
-                    if (i == dragTabIndex || IsPlusTab(i)) continue;
+                    if (i == dragTabIndex || IsPlusTab(i))
+                        continue;
 
                     var rect = tabControl.GetTabRect(i);
+
                     if (rect.Contains(e.Location))
                     {
                         var dragged = tabControl.TabPages[dragTabIndex];
@@ -652,5 +680,18 @@ namespace AlwaysOnTopMemo
     {
         public string Title { get; set; }
         public string Rtf { get; set; }
+    }
+
+    public class DoubleBufferedTabControl : TabControl
+    {
+        public DoubleBufferedTabControl()
+        {
+            typeof(TabControl)
+                .GetProperty(
+                    "DoubleBuffered",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(this, true, null);
+        }
     }
 }
