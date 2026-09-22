@@ -9,7 +9,7 @@ using System.Windows.Forms;
 using System.Threading;
 using Timer = System.Windows.Forms.Timer;
 
-namespace AlwaysOnTopMemo
+namespace CaptureMemo
 {
     public class CaptureMemoForm : Form
     {
