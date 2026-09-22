@@ -678,31 +678,6 @@ namespace CaptureMemo
             for (int i = 1; i <= MAX_TABS; i++) { if (!used.Contains(i)) return i; }
             return -1;
         }
-
-        [STAThread]
-        static void Main()
-        {
-
-            // ==========================================
-            // “ñd‹N“®–hŽ~
-            // ==========================================
-            bool createdNew;
-
-            using Mutex mutex = new Mutex(
-                true,
-                "CaptureMemo_SingleInstance",
-                out createdNew);
-
-            // ‚·‚Å‚É‹N“®‚µ‚Ä‚¢‚éê‡‚Í‰½‚à‚¹‚¸I—¹
-            if (!createdNew)
-            {
-                return;
-            }
-
-
-            Application.EnableVisualStyles();
-            Application.Run(new CaptureMemoForm());
-        }
     }
 
     class TabData
