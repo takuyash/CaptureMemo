@@ -1,4 +1,6 @@
-﻿namespace CaptureMemo
+﻿using CaptureMemo.Helpers;
+
+namespace CaptureMemo
 {
     partial class CaptureMemoForm
     {

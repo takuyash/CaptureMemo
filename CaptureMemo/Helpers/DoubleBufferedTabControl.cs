@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace CaptureMemo
+namespace CaptureMemo.Helpers
 {
     public class DoubleBufferedTabControl : TabControl
     {

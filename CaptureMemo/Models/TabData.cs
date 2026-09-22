@@ -1,4 +1,4 @@
-﻿namespace CaptureMemo
+﻿namespace CaptureMemo.Models
 {
     class TabData
     {

@@ -1,5 +1,6 @@
 using System.Drawing.Imaging;
 using System.Text.Json;
+using CaptureMemo.Models;
 using Timer = System.Windows.Forms.Timer;
 
 namespace CaptureMemo
