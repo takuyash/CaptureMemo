@@ -11,7 +11,7 @@ using Timer = System.Windows.Forms.Timer;
 
 namespace AlwaysOnTopMemo
 {
-    public class MainForm : Form
+    public class CaptureMemoForm : Form
     {
         private TabControl tabControl;
         private int hoverCloseIndex = -1;
@@ -46,7 +46,7 @@ namespace AlwaysOnTopMemo
         private int currentTabIndex = 0;
         private int currentIndex = 0;
 
-        public MainForm()
+        public CaptureMemoForm()
         {
             AppIcon = LoadIcon("icon.ico");
             this.Icon = AppIcon;
@@ -647,7 +647,7 @@ namespace AlwaysOnTopMemo
 
         private static Icon LoadIcon(string resourceName)
         {
-            var assembly = typeof(MainForm).Assembly;
+            var assembly = typeof(CaptureMemoForm).Assembly;
             string fullName = assembly.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(resourceName, StringComparison.OrdinalIgnoreCase));
             if (fullName != null)
             {
@@ -701,7 +701,7 @@ namespace AlwaysOnTopMemo
 
 
             Application.EnableVisualStyles();
-            Application.Run(new MainForm());
+            Application.Run(new CaptureMemoForm());
         }
     }
 
