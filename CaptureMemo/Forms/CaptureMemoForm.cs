@@ -481,25 +481,23 @@ namespace CaptureMemo
             // 色
             // =========================
 
-            Color bgColor = isSelected
-                ? Color.White
-                : (isHovered
-                    ? Color.FromArgb(235, 235, 235)
-                    : Color.FromArgb(245, 245, 245));
-
-            Color textColor = Color.Black;
-
             Color accentColor =
-                Color.FromArgb(0, 120, 215);
+                Color.FromArgb(37, 99, 235);
 
-            // =========================
-            // タブ背景
-            // =========================
+            Color hoverColor =
+                Color.FromArgb(226, 228, 234);
 
-            using (var b = new SolidBrush(bgColor))
-            {
-                g.FillRectangle(b, tabRect);
-            }
+            Color textColor = isSelected
+                ? Color.FromArgb(28, 30, 36)
+                : Color.FromArgb(105, 110, 122);
+
+            // 少し内側に寄せてタブ同士に隙間を作る
+            var card = new Rectangle(
+                tabRect.X + 2,
+                tabRect.Y + 3,
+                tabRect.Width - 4,
+                tabRect.Height - 3
+            );
 
             // =========================
             // ＋タブ
@@ -507,154 +505,239 @@ namespace CaptureMemo
 
             if (tab.Text == "+")
             {
-                using (var font = new Font(
-                    Font.FontFamily,
-                    12,
-                    FontStyle.Bold))
+                var plusRect = new Rectangle(
+                    tabRect.X + (tabRect.Width - 22) / 2,
+                    tabRect.Y + (tabRect.Height - 22) / 2 + 1,
+                    22,
+                    22
+                );
+
+                if (isHovered)
                 {
-                    TextRenderer.DrawText(
-                        g,
-                        "＋",
-                        font,
-                        tabRect,
-                        textColor,
-                        TextFormatFlags.HorizontalCenter |
-                        TextFormatFlags.VerticalCenter
-                    );
+                    using var path = RoundedRect(plusRect, 6);
+                    using var b = new SolidBrush(hoverColor);
+                    g.FillPath(b, path);
                 }
+
+                DrawPlus(
+                    g,
+                    plusRect,
+                    isHovered
+                        ? accentColor
+                        : Color.FromArgb(105, 110, 122));
 
                 return;
             }
 
             // =========================
-            // 選択状態
+            // タブ背景
             // =========================
 
             if (isSelected)
             {
-                using (var p = new Pen(
-                    accentColor,
-                    3))
+                // 上だけ角丸のカードでページと一体化させる
+                using (var path = RoundedTopRect(card, 7))
+                using (var b = new SolidBrush(Color.White))
                 {
-                    g.DrawLine(
-                        p,
-                        tabRect.Left,
-                        tabRect.Top + 1,
-                        tabRect.Right,
-                        tabRect.Top + 1
-                    );
+                    g.FillPath(b, path);
+                }
+
+                using (var path = RoundedTopRect(card, 7))
+                using (var p = new Pen(Color.FromArgb(225, 227, 232)))
+                {
+                    g.DrawPath(p, path);
+                }
+
+                // ページとの境目の線を消す
+                using (var b = new SolidBrush(Color.White))
+                {
+                    g.FillRectangle(
+                        b,
+                        card.X + 1,
+                        card.Bottom - 2,
+                        card.Width - 1,
+                        3);
+                }
+
+                // 上部のアクセントバー
+                using (var path = RoundedRect(
+                    new Rectangle(
+                        card.X + 8,
+                        card.Y,
+                        card.Width - 16,
+                        3),
+                    1))
+                using (var b = new SolidBrush(accentColor))
+                {
+                    g.FillPath(b, path);
                 }
             }
-            else
+            else if (isHovered)
             {
-                using (var p = new Pen(
-                    Color.FromArgb(220, 220, 220),
-                    1))
-                {
-                    g.DrawLine(
-                        p,
-                        tabRect.Right - 1,
-                        tabRect.Top + 5,
-                        tabRect.Right - 1,
-                        tabRect.Bottom - 5
-                    );
-                }
+                var pill = new Rectangle(
+                    card.X,
+                    card.Y + 1,
+                    card.Width,
+                    card.Height - 5
+                );
+
+                using var path = RoundedRect(pill, 6);
+                using var b = new SolidBrush(hoverColor);
+                g.FillPath(b, path);
             }
 
             // =========================
             // タイトル
             // =========================
 
-            string title = tab.Text;
+            bool showClose = isSelected || isHovered;
 
-            TextRenderer.DrawText(
-                g,
-                title,
-                Font,
-                new Rectangle(
-                    tabRect.X + 4,
-                    tabRect.Y + 1,
-                    tabRect.Width - 22,
-                    tabRect.Height
-                ),
-                textColor,
-                TextFormatFlags.Left |
-                TextFormatFlags.VerticalCenter |
-                TextFormatFlags.EndEllipsis
-            );
+            using (var titleFont = new Font(
+                tabControl.Font,
+                isSelected ? FontStyle.Bold : FontStyle.Regular))
+            {
+                TextRenderer.DrawText(
+                    g,
+                    tab.Text,
+                    titleFont,
+                    new Rectangle(
+                        card.X + 8,
+                        card.Y + 1,
+                        card.Width - (showClose ? 28 : 14),
+                        card.Height - 2
+                    ),
+                    textColor,
+                    TextFormatFlags.Left |
+                    TextFormatFlags.VerticalCenter |
+                    TextFormatFlags.EndEllipsis |
+                    TextFormatFlags.NoPrefix
+                );
+            }
 
             // =========================
             // ×ボタン
             // =========================
 
             Rectangle closeRect = new Rectangle(
-                tabRect.Right - 18,
-                tabRect.Top + 5,
-                14,
-                14
+                card.Right - 22,
+                card.Y + (card.Height - 18) / 2 + 1,
+                18,
+                18
             );
 
-            if (hoverCloseIndex == e.Index)
+            if (showClose)
             {
-                using (var b = new SolidBrush(
-                    Color.FromArgb(232, 17, 35)))
+                bool isCloseHovered =
+                    hoverCloseIndex == e.Index;
+
+                if (isCloseHovered)
                 {
-                    g.FillEllipse(b, closeRect);
+                    using var path = RoundedRect(closeRect, 5);
+                    using var b = new SolidBrush(
+                        Color.FromArgb(254, 226, 226));
+                    g.FillPath(b, path);
                 }
 
-                using (var font = new Font(
-                    Font.FontFamily,
-                    8,
-                    FontStyle.Bold))
-                {
-                    TextRenderer.DrawText(
-                        g,
-                        "×",
-                        font,
-                        closeRect,
-                        Color.White,
-                        TextFormatFlags.HorizontalCenter |
-                        TextFormatFlags.VerticalCenter |
-                        TextFormatFlags.NoPadding
-                    );
-                }
-            }
-            else
-            {
-                using (var font = new Font(
-                    Font.FontFamily,
-                    8,
-                    FontStyle.Bold))
-                {
-                    TextRenderer.DrawText(
-                        g,
-                        "×",
-                        font,
-                        closeRect,
-                        Color.FromArgb(100, 100, 100),
-                        TextFormatFlags.HorizontalCenter |
-                        TextFormatFlags.VerticalCenter |
-                        TextFormatFlags.NoPadding
-                    );
-                }
+                DrawCross(
+                    g,
+                    closeRect,
+                    isCloseHovered
+                        ? Color.FromArgb(220, 38, 38)
+                        : Color.FromArgb(120, 125, 136));
             }
 
             tab.Tag = closeRect;
 
             // =========================
-            // ドラッグゴースト
+            // ドラッグゴースト（最後に1回だけ描く）
             // =========================
 
-            if (isDragging && dragGhostRect.HasValue)
+            if (isDragging &&
+                dragGhostRect.HasValue &&
+                e.Index == tabControl.TabCount - 1)
             {
-                using var b = new SolidBrush(
-                    Color.FromArgb(60, accentColor));
+                using var path = RoundedRect(dragGhostRect.Value, 6);
 
-                g.FillRectangle(
-                    b,
-                    dragGhostRect.Value
-                );
+                using (var b = new SolidBrush(
+                    Color.FromArgb(50, accentColor)))
+                {
+                    g.FillPath(b, path);
+                }
+
+                using (var p = new Pen(
+                    Color.FromArgb(140, accentColor)))
+                {
+                    g.DrawPath(p, path);
+                }
             }
+        }
+
+        // =========================
+        // タブ描画ヘルパー
+        // =========================
+
+        private static System.Drawing.Drawing2D.GraphicsPath RoundedRect(
+            Rectangle r,
+            int radius)
+        {
+            var path = new System.Drawing.Drawing2D.GraphicsPath();
+            int d = radius * 2;
+
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+
+            return path;
+        }
+
+        private static System.Drawing.Drawing2D.GraphicsPath RoundedTopRect(
+            Rectangle r,
+            int radius)
+        {
+            var path = new System.Drawing.Drawing2D.GraphicsPath();
+            int d = radius * 2;
+
+            path.AddLine(r.X, r.Bottom, r.X, r.Y + radius);
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddLine(r.Right, r.Y + radius, r.Right, r.Bottom);
+
+            return path;
+        }
+
+        private static void DrawCross(
+            Graphics g,
+            Rectangle r,
+            Color color)
+        {
+            const int inset = 5;
+
+            using var p = new Pen(color, 1.6f);
+            p.StartCap = System.Drawing.Drawing2D.LineCap.Round;
+            p.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+
+            g.DrawLine(p, r.Left + inset, r.Top + inset, r.Right - inset, r.Bottom - inset);
+            g.DrawLine(p, r.Right - inset, r.Top + inset, r.Left + inset, r.Bottom - inset);
+        }
+
+        private static void DrawPlus(
+            Graphics g,
+            Rectangle r,
+            Color color)
+        {
+            const int inset = 6;
+
+            using var p = new Pen(color, 1.8f);
+            p.StartCap = System.Drawing.Drawing2D.LineCap.Round;
+            p.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+
+            float cx = r.X + r.Width / 2f;
+            float cy = r.Y + r.Height / 2f;
+
+            g.DrawLine(p, cx, r.Top + inset, cx, r.Bottom - inset);
+            g.DrawLine(p, r.Left + inset, cy, r.Right - inset, cy);
         }
 
         // =========================
